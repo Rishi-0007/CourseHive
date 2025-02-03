@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { enrollCourse, unenrollCourse } from "../controllers/enrollmentController";
-import { protect } from "../middlewares/auth";
+import { enrollCourse, unenrollCourse } from "../controllers/enrollmentController.js";
+import { protect } from "../middlewares/auth.js";
 
 const enrollmentRouter = Router();
 

@@ -97,7 +97,7 @@ const getCourses = asyncHandler(async (req, res) => {
 
 // Get a course by slug
 const getCourse = asyncHandler(async (req, res) => {
-    const course = await Course.findOne({ slug: req.params.slug })
+    const course = await courseModel.findOne({ slug: req.params.slug })
         .populate("instructor", "name email bio")
 
     if (!course) {

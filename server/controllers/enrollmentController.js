@@ -1,6 +1,6 @@
 import asyncHandler from 'express-async-handler';
-import { courseModel } from '../models/course';
-import { userModel } from '../models/user';
+import { courseModel } from '../models/course.js';
+import { userModel } from '../models/user.js';
 
 const enrollCourse = asyncHandler(async (req, res) => {
     const course = await courseModel.findById(req.params.courseId);
