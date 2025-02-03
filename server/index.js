@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import { authRouter } from "./routes/auth.js";
 import cookieParser from "cookie-parser";
+import { courseRouter } from "./routes/course.js";
 
 dotenv.config();
 const app = express();
@@ -12,6 +13,7 @@ app.use(cookieParser());
 
 // Routes
 app.use("/api/auth", authRouter);
+app.use("/api/courses", courseRouter);
 
 mongoose.connect(process.env.MONGO_DB_URI).then(() => {
     app.listen(3000, () => {

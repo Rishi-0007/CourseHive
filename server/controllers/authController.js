@@ -3,6 +3,14 @@ import bcrypt from "bcryptjs";
 import asyncHandler from "express-async-handler";
 import { userModel } from "../models/user.js";
 import { sendEmail } from "../utils/sendEmail.js";
+import { z } from "zod";
+
+const userSchema = z.object({
+    name: z.string().min(3).max(50),
+    email: z.string().email(),
+    password: z.string().min(8).max(50),
+    role: z.string().optional(),
+})
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -13,45 +21,61 @@ const generateToken = (id) => {
 
 // Register User
 const registerUser = asyncHandler(async (req, res) => {
-    const { name, email, password, role } = req.body;
+    try {
+        const validateData = userSchema.safeParse(req.body);
 
-    // Check if user exists
-    const userExists = await userModel.findOne({ email });
-    if (userExists) {
-        res.status(400);
-        throw new Error("User already exists");
+        if (!validateData.success) {
+            return res.status(400).json({
+                success: false,
+                errors: validateData.error.issues.map(issue => ({
+                    field: issue.path.join('.'),
+                    message: issue.message
+                }))
+            });
+        }
+
+        const { name, email, password, role } = validateData.data;
+
+        // Check if user exists
+        const userExists = await userModel.findOne({ email });
+        if (userExists) {
+            res.status(400).json({ message: "User already exists" });
+        }
+
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // Create user
+        const user = await userModel.create({
+            name,
+            email,
+            password: hashedPassword,
+            role: role || "student",
+        });
+
+        if (user) {
+            // Set JWT as HTTP-only cookie
+            res.cookie("token", generateToken(user._id), {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "strict",
+                maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+            });
+
+            res.status(201).json({
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+            });
+        } else {
+            res.status(400).json({ message: "Invalid user data" });
+        }
     }
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create user
-    const user = await userModel.create({
-        name,
-        email,
-        password: hashedPassword,
-        role: role || "student",
-    });
-
-    if (user) {
-        // Set JWT as HTTP-only cookie
-        res.cookie("token", generateToken(user._id), {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
-            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        });
-
-        res.status(201).json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-        });
-    } else {
+    catch (err) {
         res.status(400);
-        throw new Error("Invalid user data");
+        throw new Error(err.message);
     }
 });
 
@@ -62,15 +86,13 @@ const loginUser = asyncHandler(async (req, res) => {
     // Check for user
     const user = await userModel.findOne({ email });
     if (!user) {
-        res.status(401);
-        throw new Error("Invalid email or password");
+        res.status(401).json({ message: "Invalid email or password" });
     }
 
     // Verify password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-        res.status(401);
-        throw new Error("Invalid email or password");
+        res.status(401).json({ message: "Invalid email or password" });
     }
 
     // Set JWT cookie
@@ -100,7 +122,21 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 // Get User Profile (Protected Route Example)
 const getUserProfile = asyncHandler(async (req, res) => {
-    res.json(req.user);
+    const user = await userModel.findById(req.user.id)
+        .populate({
+            path: 'coursesEnrolled',
+            select: 'title description slug price'
+        })
+        .populate({
+            path: 'coursesCreated',
+            select: 'title slug studentsEnrolled createdAt'
+        })
+        .select('-password');
+
+    res.json({
+        success: true,
+        data: user
+    });
 });
 
 // Forgot Password (Send Reset Email)

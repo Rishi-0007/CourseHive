@@ -7,11 +7,10 @@ const Course = new Schema({
     description: { type: String, required: true },
     price: { type: Number, required: true },
     instructor: {
-        type: Schema.ObjectId,
+        type: Schema.Types.ObjectId,
         required: true,
         ref: "User"
     },
-    category: { type: Schema.ObjectId, ref: "Category" },
     content: [{
         title: String,
         description: String,
@@ -25,7 +24,11 @@ const Course = new Schema({
         type: String,
         enum: ["beginner", "intermediate", "advanced"],
         default: "beginner",
-    }
+    },
+    studentsEnrolled: [{
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    }]
 })
 
 export const courseModel = mongoose.model("Course", Course)
